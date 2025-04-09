@@ -12,7 +12,11 @@ fn main() {
         "/Nagi/SteamLibrary/steamapps/compatdata/3328480/pfx/drive_c/users/steamuser/AppData/Local/tgm4/savedata/",
     );
     #[cfg(windows)]
-    let root_folder = std::env::var("APPDATA").expect("No APPDATA directory");
+    let root_folder = {
+        let mut root_folder = PathBuf::from(std::env::var("LOCALAPPDATA").expect("No APPDATA directory"));
+        root_folder.push("tgm4");
+        root_folder
+    };  
 
     let mut wtr = Writer::from_path("replays.csv").unwrap();
     wtr.write_record(&[
@@ -69,7 +73,7 @@ fn main() {
                     }
                 };
             }
-            Err(e) => println!("{:?}", e),
+            Err(e) => eprintln!("{:?}", e),
         }
     }
     wtr.flush().unwrap();

@@ -3,6 +3,9 @@ use glob::glob;
 use replay::{KonohaDifficulty, Replay};
 use std::path::PathBuf;
 
+#[cfg(windows)]
+use std::process::Command;
+
 mod replay;
 
 fn main() {
@@ -13,10 +16,11 @@ fn main() {
     );
     #[cfg(windows)]
     let root_folder = {
-        let mut root_folder = PathBuf::from(std::env::var("LOCALAPPDATA").expect("No APPDATA directory"));
+        let mut root_folder =
+            PathBuf::from(std::env::var("LOCALAPPDATA").expect("No APPDATA directory"));
         root_folder.push("tgm4");
         root_folder
-    };  
+    };
 
     let mut wtr = Writer::from_path("replays.csv").unwrap();
     wtr.write_record(&[
@@ -29,13 +33,14 @@ fn main() {
         "Seed",
     ])
     .unwrap();
-
-    for entry in glob(&format!(
+    let entries = glob(&format!(
         "{}/**/replay_data/**/*.bin",
         root_folder.display()
     ))
-    .expect("Failed to read glob pattern")
-    {
+    .expect("Failed to read glob pattern");
+    let mut n = 0;
+
+    for entry in entries {
         match entry {
             Ok(path) => {
                 let bytes = std::fs::read(&path).unwrap();
@@ -67,6 +72,7 @@ fn main() {
                             r.seed,
                         ))
                         .unwrap();
+                        n += 1;
                     }
                     Err(e) => {
                         eprintln!("Error on path {}: {e}", path.display())
@@ -77,4 +83,9 @@ fn main() {
         }
     }
     wtr.flush().unwrap();
+
+    println!("Processed {n} files. Be warned that running the executable again will overwrite replay.csv.");
+
+    #[cfg(windows)]
+    let _ = Command::new("cmd.exe").arg("/c").arg("pause").status();
 }

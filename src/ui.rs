@@ -11,8 +11,19 @@ use crate::replay::{KonohaDifficulty, Mode, ReplayStore};
 pub struct ManagerUI {
     selected_tab: Tab,
     selected_mode: Mode,
-    selected_rows: HashSet<usize>,
+    selected_rows: SelectedRows,
     replay_store: ReplayStore,
+}
+
+#[derive(serde::Deserialize, Default)]
+struct SelectedRows {
+    normal: HashSet<usize>,
+    marathon: HashSet<usize>,
+    asuka: HashSet<usize>,
+    master: HashSet<usize>,
+    shiranui: HashSet<usize>,
+    konoha: HashSet<usize>,
+    pvp: HashSet<usize>,
 }
 
 #[derive(PartialEq, serde::Deserialize)]
@@ -49,15 +60,20 @@ impl ManagerUI {
             .size
             .max(ui.spacing().interact_size.y);
 
-        //TODO can we remove the clone?
-        let replays = match self.selected_mode {
-            Mode::Marathon => self.replay_store.marathon.clone(),
-            Mode::Master => self.replay_store.master.clone(),
-            Mode::Normal => self.replay_store.normal.clone(),
-            Mode::Konoha(_) => self.replay_store.konoha.clone(),
-            Mode::Shiranui(_, _) => self.replay_store.shiranui.clone(),
-            Mode::Asuka => self.replay_store.asuka.clone(),
-            Mode::Versus => self.replay_store.pvp.clone(),
+        let (replays, selected_rows) = match self.selected_mode {
+            Mode::Marathon => (
+                &self.replay_store.marathon,
+                &mut self.selected_rows.marathon,
+            ),
+            Mode::Master => (&self.replay_store.master, &mut self.selected_rows.master),
+            Mode::Normal => (&self.replay_store.normal, &mut self.selected_rows.normal),
+            Mode::Konoha(_) => (&self.replay_store.konoha, &mut self.selected_rows.konoha),
+            Mode::Shiranui(_, _) => (
+                &self.replay_store.shiranui,
+                &mut self.selected_rows.shiranui,
+            ),
+            Mode::Asuka => (&self.replay_store.asuka, &mut self.selected_rows.asuka),
+            Mode::Versus => (&self.replay_store.pvp, &mut self.selected_rows.pvp),
         };
 
         let mut table = TableBuilder::new(ui)
@@ -103,12 +119,12 @@ impl ManagerUI {
             .body(|mut body| {
                 body.rows(text_height, replays.len(), |mut row| {
                     let row_index = row.index();
-                    row.set_selected(self.selected_rows.contains(&row_index));
+                    row.set_selected(selected_rows.contains(&row_index));
                     // Useless in Normal/Marathon
                     // self.replay_store.normal.get(row_index).map(|replay| {
                     //     ui.label(replay.rule.to_string());
                     // });
-                    if let Some(ref replay) = replays.get(row_index) {
+                    if let Some(replay) = replays.get(row_index) {
                         row.col(|ui| {
                             ui.label(row_index.to_string());
                         });
@@ -143,19 +159,10 @@ impl ManagerUI {
                         });
                     }
 
-                    self.toggle_row_selection(row_index, &row.response());
+                    toggle_row_selection(selected_rows, row_index, &row.response());
                 });
             });
         //.max_scroll_height(400);
-    }
-    fn toggle_row_selection(&mut self, row_index: usize, row_response: &egui::Response) {
-        if row_response.clicked() {
-            if self.selected_rows.contains(&row_index) {
-                self.selected_rows.remove(&row_index);
-            } else {
-                self.selected_rows.insert(row_index);
-            }
-        }
     }
 }
 impl eframe::App for ManagerUI {
@@ -196,5 +203,19 @@ impl eframe::App for ManagerUI {
         egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
             ui.label("Test");
         });
+    }
+}
+
+fn toggle_row_selection(
+    selected_rows: &mut HashSet<usize>,
+    row_index: usize,
+    row_response: &egui::Response,
+) {
+    if row_response.clicked() {
+        if selected_rows.contains(&row_index) {
+            selected_rows.remove(&row_index);
+        } else {
+            selected_rows.insert(row_index);
+        }
     }
 }

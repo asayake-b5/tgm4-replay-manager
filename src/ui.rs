@@ -1,18 +1,19 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, env};
 
 use egui::TextWrapMode;
 use egui_extras::{Column, TableBuilder};
 
-use crate::replay::{KonohaDifficulty, Mode, ReplayStore};
+use crate::{
+    replay::{KonohaDifficulty, Mode, ReplayStore},
+    steam::SteamApi,
+};
 
-/// We derive Deserialize/Serialize so we can persist app state on shutdown.
-#[derive(serde::Deserialize)]
-#[serde(default)] // if we add new fields, give them default values when deserializing old state
 pub struct ManagerUI {
     selected_tab: Tab,
     selected_mode: Mode,
     selected_rows: SelectedRows,
     replay_store: ReplayStore,
+    steam_api: SteamApi,
 }
 
 #[derive(serde::Deserialize, Default)]
@@ -38,6 +39,7 @@ impl Default for ManagerUI {
         Self {
             selected_tab: Tab::Game,
             selected_mode: Mode::Normal,
+            steam_api: Default::default(),
             replay_store: Default::default(),
             selected_rows: Default::default(),
         }
@@ -48,8 +50,16 @@ impl ManagerUI {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         // This is also where you can customize the look and feel of egui using
         // `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
+        let api_key = env::var("APIKEY").unwrap_or_default(); //TODO changeme
+        let replay_store = ReplayStore::new();
+        let mut steam_api = SteamApi::new(api_key);
+        let ids = replay_store.get_steam_ids();
+        dbg!(&ids);
+        steam_api.add_ids(&ids);
+
         Self {
-            replay_store: ReplayStore::new(),
+            replay_store,
+            steam_api,
             ..Default::default()
         }
     }
@@ -86,6 +96,7 @@ impl ManagerUI {
             .column(Column::auto())
             .column(Column::auto())
             .column(Column::auto())
+            .column(Column::auto())
             .column(Column::remainder())
             .column(Column::remainder())
             .sense(egui::Sense::click())
@@ -97,6 +108,11 @@ impl ManagerUI {
                 header.col(|ui| {
                     ui.strong("Name");
                 });
+                if self.selected_mode != Mode::Normal && self.selected_mode != Mode::Marathon {
+                    header.col(|ui| {
+                        ui.strong("Rule");
+                    });
+                }
                 header.col(|ui| {
                     ui.strong("Level");
                 });
@@ -128,14 +144,21 @@ impl ManagerUI {
                         row.col(|ui| {
                             ui.label(row_index.to_string());
                         });
-                        // row.col(|ui| ui.label(format!("{}", replay.steamid)));
                         row.col(|ui| {
-                            ui.label(replay.steamid.to_string());
+                            ui.label(self.steam_api.get(replay.steamid));
                         });
+                        if self.selected_mode != Mode::Normal
+                            && self.selected_mode != Mode::Marathon
+                        {
+                            row.col(|ui| {
+                                ui.label(replay.rule.to_string());
+                            });
+                        }
                         row.col(|ui| {
                             ui.label(replay.level.to_string());
                         });
                         row.col(|ui| {
+                            ui.label("TODO");
                             //                            ui.label(replay.modifiers.to_string());
                         });
                         row.col(|ui| {
@@ -155,7 +178,7 @@ impl ManagerUI {
                             ui.label(replay.seed.to_string());
                         });
                         row.col(|ui| {
-                            ui.label(replay.played_at.to_string());
+                            ui.label(replay.played_at.format("%Y-%m-%d %H:%M:%S").to_string());
                         });
                     }
 
@@ -201,6 +224,7 @@ impl eframe::App for ManagerUI {
 
         egui::CentralPanel::default().show(ctx, |ui| self.show_table(ui));
         egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
+            //TODO invert selection (set complementary magic)
             ui.label("Test");
         });
     }

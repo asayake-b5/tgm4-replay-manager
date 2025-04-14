@@ -2,6 +2,7 @@ use chrono::{DateTime, Local, TimeZone, Utc};
 use serde::{Deserialize, Serialize};
 use std::{
     array::TryFromSliceError,
+    collections::HashSet,
     fmt::{self},
     time::Duration,
 };
@@ -283,6 +284,39 @@ impl ReplayStore {
             }
         }
         store
+    }
+
+    pub fn get_steam_ids(&self) -> Vec<u64> {
+        let mut ids: HashSet<u64> = HashSet::new();
+        self.normal.iter().for_each(|r| {
+            //
+            ids.insert(r.steamid);
+        });
+        self.marathon.iter().for_each(|r| {
+            //
+            ids.insert(r.steamid);
+        });
+        self.asuka.iter().for_each(|r| {
+            //
+            ids.insert(r.steamid);
+        });
+        self.master.iter().for_each(|r| {
+            //
+            ids.insert(r.steamid);
+        });
+        self.shiranui.iter().for_each(|r| {
+            //
+            ids.insert(r.steamid);
+        });
+        self.konoha.iter().for_each(|r| {
+            //
+            ids.insert(r.steamid);
+        });
+        self.pvp.iter().for_each(|r| {
+            //
+            ids.insert(r.steamid);
+        });
+        ids.into_iter().collect::<Vec<u64>>()
     }
 }
 

@@ -3,6 +3,7 @@
 
 use crate::ui::ManagerUI;
 mod replay;
+mod steam;
 mod ui;
 
 fn main() -> eframe::Result {
